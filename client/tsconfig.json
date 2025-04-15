@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "outDir": "dst",
+    "removeComments": true,
+    "target": "ES2022",
+    "moduleResolution": "node",
+    "alwaysStrict": true,
+    "allowUnreachableCode": false,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": [
+    "src/*.ts"
+  ]
+}
