@@ -94,6 +94,8 @@ class SongInfo:
         self.release_date = spotify_json["album"]["release_date"]
         self.url = spotify_json["external_urls"]["spotify"]
     
+    def __repr__(self):
+        return str(self)
     def __str__(self):
         return f"'{self.name}' by '{self.artist}' on '{self.album} ({self.release_date})'\n{self.url}"
     
@@ -139,7 +141,7 @@ def request_valid_song(access_token, genre: str=None) -> SongInfo:
                     SPOTIFY_API_URL,
                     wildcard,
                     "%20genre:%22{}%22".format(genre.replace(" ", "%20")),
-                    random.randint(0, 1000),
+                    random.randint(0, 400),
                 ),
                 headers=authorization_header,
             )
@@ -166,6 +168,7 @@ def main(client_id: str, client_secret: str, genre: Genre | None = None):
         valid_genres = genre.genre
 
     selected_genre = random.choice(valid_genres)
+    print(selected_genre)
 
     # Get a Spotify API token
     token = get_token(client_id, client_secret, {"grant_type": "client_credentials"}, token)

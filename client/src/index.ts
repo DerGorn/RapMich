@@ -18,9 +18,12 @@ random.onmousedown = async () => {
     if (!playing) {
         clear_result()
         const response = await fetch("http://127.0.0.1:8000/random")
-        console.log(response.status, await response.json());
+        console.log(response.status);
         if (response.status === 200) {
             song_info = await response.json();
+            console.log(song_info);
+        } else {
+            console.error(await response.json());
         }
     }
 };
