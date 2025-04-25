@@ -15,6 +15,7 @@ load_dotenv()
 # Client Keys
 CLIENT_ID = os.environ.get("CLIENT_ID", None)
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET", None)
+SCHEME = os.environ.get("SCHEME", "http")
 
 if CLIENT_ID is None or CLIENT_SECRET is None:
     print(
@@ -92,10 +93,12 @@ def random_string(len: int) -> str:
 
 @auth.get("/login")
 async def login(request: Request):
+    redirect_uri = request.url_for("callback")
+    redirect_uri = redirect_uri.replace(scheme=SCHEME)
     query = {
         "client_id": CLIENT_ID,
         "response_type": "code",
-        "redirect_uri": request.url_for("callback"),
+        "redirect_uri": redirect_uri,
         "state": random_string(32),
         "scope": "user-modify-playback-state user-read-playback-state",
         
@@ -111,5 +114,7 @@ async def callback(request: Request, state: str = Query(default=""), code: str |
         return Response({"error": error}, status_code=401)
     if code is None:
         return Response({"error": "Spotify died. Got no error or code"}, status_code=500)
+    redirect_uri = request.url_for("callback")
+    redirect_uri = redirect_uri.replace(scheme=SCHEME)
     
-    UserToken(code, request.url_for("callback"))
+    UserToken(code, redirect_uri)
