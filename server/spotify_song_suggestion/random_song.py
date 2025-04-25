@@ -6,12 +6,11 @@ scrapped from http://everynoise.com/everynoise1d.cgi?scope=all&vector=popularity
 Spotify Ref: https://developer.spotify.com/documentation/web-api/reference-beta/#category-search
 """
 
-import base64
 import json
 import random
 import requests
 import sys
-import timeit
+from auth import Token
 from pydantic import BaseModel, AfterValidator
 from typing import Annotated, List
 
@@ -44,39 +43,9 @@ class Genre(BaseModel):
     genre: Annotated[List[str], AfterValidator(genre_validation)]
 
 # Spotify API URIs
-SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 SPOTIFY_API_BASE_URL = "https://api.spotify.com"
 API_VERSION = "v1"
 SPOTIFY_API_URL = "{}/{}".format(SPOTIFY_API_BASE_URL, API_VERSION)
-
-class Token:
-    token: str
-    expiration: float
-    refresh_token: str | None
-
-    def __init__(self, token: str, expiration: float, refresh_token: str | None = None):
-        self.token = token
-        self.expiration = expiration
-        self.refresh_token = refresh_token
-
-token: Token | None = None
-
-def get_token(client_id: str, client_secret: str, payload: dict, token: Token | None = None):
-    if token is not None and timeit.default_timer() < (token.expiration - 2):
-        return token
-    client_token = base64.b64encode(
-        "{}:{}".format(client_id, client_secret).encode("UTF-8")
-    ).decode("ascii")
-    headers = {
-        "Authorization": "Basic {}".format(client_token),
-        "Content-Type": "application/x-www-form-urlencoded",
-    }
-    token_request = requests.post(SPOTIFY_TOKEN_URL, data=payload, headers=headers)
-    response = token_request.json()
-    access_token = response["access_token"]
-    expiration_date = timeit.default_timer() + response["expires_in"]
-    refresh_token= response.get("refresh_token", None)
-    return Token(token=access_token, expiration=expiration_date, refresh_token=refresh_token)
 
 class SongInfo:
     uri: str
@@ -154,8 +123,7 @@ def request_valid_song(access_token, genre: str=None) -> SongInfo:
     return SongInfo(song_info)
 
 
-def main(client_id: str, client_secret: str, genre: Genre | None = None):
-    global token
+def main(token: Token, genre: Genre | None = None):
     # Open genres file
     if genre is None:
         try:
@@ -170,16 +138,6 @@ def main(client_id: str, client_secret: str, genre: Genre | None = None):
     selected_genre = random.choice(valid_genres)
     print(selected_genre)
 
-    # Get a Spotify API token
-    token = get_token(client_id, client_secret, {"grant_type": "client_credentials"}, token)
     # Call the API for a song that matches the criteria
     result = request_valid_song(token.token, genre=selected_genre)
     return result
-
-
-if __name__ == "__main__":
-    import os
-    from dotenv import load_dotenv
-    load_dotenv()
-    song_info = main(os.environ.get("CLIENT_ID"), os.environ.get("CLIENT_SECRET"), Genre.model_validate_json('{"genre": ["black metal", "pop"]}'))
-    print(song_info)

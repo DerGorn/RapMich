@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "outDir": "dst",
+    "outDir": "public/dst",
     "removeComments": true,
     "target": "ES2022",
     "moduleResolution": "node",

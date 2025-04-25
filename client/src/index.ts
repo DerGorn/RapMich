@@ -17,11 +17,15 @@ let song_info: SongInfo | undefined = undefined;
 random.onmousedown = async () => {
     if (!playing) {
         clear_result()
-        const response = await fetch("http://127.0.0.1:8000/random")
+        const response = await fetch("/api/songinfo/playlist/1CtyLM8ZbtqBs68qL0lijw")
         console.log(response.status);
         if (response.status === 200) {
             song_info = await response.json();
             console.log(song_info);
+            const playResponse = await fetch("/api/play?uri="+song_info?.uri, {method: "POST"});
+            if (playResponse.status !== 204) {
+                console.error(await playResponse.json());
+            }
         } else {
             console.error(await response.json());
         }
