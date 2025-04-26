@@ -1,8 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse, JSONResponse, Response
 from fastapi import Query
 from typing import List
 from spotify_song_suggestion.random_song import main as get_random_song, Genre, SongInfo
+from pydantic import BaseModel
+from starsessions import load_session
 import random
 import requests
 from dotenv import load_dotenv
@@ -11,11 +13,10 @@ load_dotenv()
 
 api = APIRouter(prefix="/api")
 
-class Playlist:
-    def __init__(self, id: str):
-       self.id = id
-       self.tracks = []
-       self.index = 0 
+class Playlist(BaseModel):
+    id: str
+    tracks: List[SongInfo] = []
+    index: int = 0 
 
     async def populate_playlist(self):
         limit = 100
@@ -34,7 +35,7 @@ class Playlist:
             if len(tracks) == 0:
                 break
             for track in tracks:
-                track_info = SongInfo(track["track"])
+                track_info = SongInfo(spotify_json=track["track"])
                 self.tracks.append(track_info)
             offset += limit
             print(f"Read {offset} tracks so far")
@@ -50,17 +51,24 @@ class Playlist:
         self.index += 1
         return song_info
 
-playlists: dict[str, Playlist] = {}
+class Playlists(BaseModel):
+    playlists: dict[str, Playlist]
+
 
 @api.get("/songinfo/playlist/{id}")
-async def random_from_playlist(id):
-    global playlists
-    if id not in playlists:
-        playlists[id] = Playlist(id)
-        if error := await playlists[id].populate_playlist():
+async def random_from_playlist(request: Request, id):
+    await load_session(request)
+    print("START", request.session.get("playlists"))
+    playlists = Playlists.model_validate_json(request.session.get("playlists", '{"playlists": {}}'))
+    if id not in playlists.playlists:
+        playlists.playlists[id] = Playlist(id=id)
+        if error := await playlists.playlists[id].populate_playlist():
             return error
-    print(f"Playlist {id} has {len(playlists[id].tracks)} songs")
-    return JSONResponse(playlists[id].get_song_info().to_json())
+    print(f"Playlist {id} has {len(playlists.playlists[id].tracks)} songs")
+    song_info = playlists.playlists[id].get_song_info().to_json()
+    request.session["playlists"] = playlists.model_dump_json()
+    print("END", request.session.get("playlists"))
+    return JSONResponse(song_info)
         
 @api.get("/songinfo/genre")
 async def random_from_genre(genres: List[str] | None = Query(default=None)):

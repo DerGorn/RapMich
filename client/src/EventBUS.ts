@@ -5,7 +5,7 @@
 /**
  * List of all possible Events. Basic stepping stone for the type safety
  */
-const eventTypes = ["loop", "togglePlay", "requestTogglePlay"] as const;
+const eventTypes = ["loop", "togglePlay", "requestTogglePlay", "login"] as const;
 /**
  * Converts the eventTypes JavaScript array into a TypeScript type.
  */
@@ -20,6 +20,7 @@ const registeredFunctions: { [key in Events]: ((e: any) => void)[] } = {
   loop: [],
   togglePlay: [],
   requestTogglePlay: [],
+  login: [],
 };
 
 /**
@@ -30,6 +31,7 @@ type EventDefinitions = {
   loop: { delta: number };
   togglePlay: { play: boolean };
   requestTogglePlay: { play: boolean };
+  login: {};
 };
 
 /**

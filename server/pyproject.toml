@@ -10,4 +10,5 @@ dependencies = [
     "uvicorn>=0.34.1",
     "requests>=2.32.3",
     "python-dotenv>=1.1.0",
+    "starsessions>=2.2.1",
 ]

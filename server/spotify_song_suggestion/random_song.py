@@ -11,8 +11,8 @@ import random
 import requests
 import sys
 from auth import Token
-from pydantic import BaseModel, AfterValidator
-from typing import Annotated, List
+from pydantic import BaseModel, AfterValidator, model_validator
+from typing import Annotated, List, Any
 
 from fuzzysearch import find_near_matches
 
@@ -47,21 +47,34 @@ SPOTIFY_API_BASE_URL = "https://api.spotify.com"
 API_VERSION = "v1"
 SPOTIFY_API_URL = "{}/{}".format(SPOTIFY_API_BASE_URL, API_VERSION)
 
-class SongInfo:
+class SongInfo(BaseModel):
     uri: str
     name: str
-    artist: str
+    artist: List[str]
     album: str
     release_date: str
     url: str
-    
-    def __init__(self, spotify_json: dict):
-        self.uri = spotify_json["uri"]
-        self.name = spotify_json["name"]
-        self.artist = [x["name"] for x in spotify_json["artists"]]
-        self.album = spotify_json["album"]["name"]
-        self.release_date = spotify_json["album"]["release_date"]
-        self.url = spotify_json["external_urls"]["spotify"]
+
+    @model_validator(mode="before")
+    @classmethod   
+    def destructure_spotify_json(self, data: Any):
+        if not isinstance(data, dict):
+            raise ValueError("Invalid JSON format. Expected spotify JSON as dict.")
+        if "spotify_json" in data:
+            spotify_json = data["spotify_json"]
+        elif "uri" in data and "artist" in data:
+            # Desereliazation of allready validated Songinfo
+            return data
+        else:
+            raise ValueError("Invalid JSON format. Expected spotify JSON as dict.")
+        data = {}
+        data["uri"] = spotify_json["uri"]
+        data["name"] = spotify_json["name"]
+        data["artist"] = [x["name"] for x in spotify_json["artists"]]
+        data["album"] = spotify_json["album"]["name"]
+        data["release_date"] = spotify_json["album"]["release_date"]
+        data["url"] = spotify_json["external_urls"]["spotify"]
+        return data
     
     def __repr__(self):
         return str(self)

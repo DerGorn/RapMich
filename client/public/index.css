@@ -14,34 +14,45 @@ width: 100vw;
 height: 100vh;
 }
 
-.playButton {
+button {
 border-radius: 10px;
 background-color: rgb(104, 64, 236);
 width: fit-content;
 padding: 10px;
 position: relative;
+box-sizing: content-box;
+--button-color: black;
+color: var(--button-color);
+}
+button:hover {
+--button-color: white;
+background-color: rgb(68, 16, 237);
+}
+button:focus {
+--button-color: white;
+background-color: rgb(16, 127, 237);
+}
+button:focus:hover { 
+--button-color: white;
+background-color: rgb(68, 16, 237);
+}
+
+.playButton {
 width: 100px;
 height: 100px;
-box-sizing: content-box;
---icon-color: black;
+--icon-color: var(--button-color);
 --play-icon: 100%;
 --pause-icon: 0%;
 }
 .playButton:hover {
---icon-color: white;
-background-color: rgb(68, 16, 237);
 --play-icon: 100%;
 --pause-icon: 0%;
 }
 .playButton:focus {
-background-color: rgb(16, 127, 237);
---icon-color: white;
 --play-icon: 0%;
 --pause-icon: 100%;
 }
 .playButton:focus:hover {
---icon-color: white;
-background-color: rgb(68, 16, 237);
 --play-icon: 0%;
 --pause-icon: 100%;
 }
