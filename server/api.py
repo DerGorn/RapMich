@@ -24,7 +24,7 @@ class Playlist(BaseModel):
         print(f"Populating playlist {self.id}")
         while True:
             response = requests.get(
-                f"https://api.spotify.com/v1/playlists/{self.id}/tracks?fields=items.track(name,uri,artists.name,album(name,release_date),external_urls.spotify)&limit={limit}&offset={offset}",
+                f"https://api.spotify.com/v1/playlists/{self.id}/tracks?fields=items.track(duration_ms,name,uri,artists.name,album(name,release_date),external_urls.spotify)&limit={limit}&offset={offset}",
                 headers={"Authorization": f"Bearer {ClientToken().token}"},
             )
             if response.status_code != 200:
@@ -56,7 +56,7 @@ class Playlists(BaseModel):
 
 
 @api.get("/songinfo/playlist/{id}")
-async def random_from_playlist(request: Request, id):
+async def random_from_playlist(request: Request, id: str):
     await load_session(request)
     print("START", request.session.get("playlists"))
     playlists = Playlists.model_validate_json(request.session.get("playlists", '{"playlists": {}}'))
@@ -70,39 +70,25 @@ async def random_from_playlist(request: Request, id):
     print("END", request.session.get("playlists"))
     return JSONResponse(song_info)
         
-@api.get("/songinfo/genre")
-async def random_from_genre(genres: List[str] | None = Query(default=None)):
+@api.get("/songinfo/genre/{genre}")
+async def random_from_genre(genre: str | None = None):
     # genre = ["german hip hop", "rock and roll", "german trap", "german hip hop", "german pop rock", "groove metal", "nu metal", "german pop"]
     # genre = ["german hip hop", "metalcore", "drum and bass", "death metal", "german trap"]
-    if genres:
-        inner = '{"genre": ['
-        first = True
-        for g in genres:
-            if not first:
-                inner += ", "
-            inner += f'"{g}"'
-            first = False
-        inner += "]}"
-        genre = Genre.model_validate_json(inner)
+    if genre:
+        try:
+            genre = Genre(genre=[genre])
+        except ValueError:
+            genre = None
     song_info = get_random_song(ClientToken(), genre) 
     return JSONResponse(song_info.to_json())
     
-
-@api.post("/play")
-async def play(uri: str):
-    try:
-        token = UserToken()
-    except ValueError:
-        return RedirectResponse(url=auth.url_path_for("login"), status_code=302)
-
+async def get_device(token: UserToken) -> str:
     response = requests.get(
         "https://api.spotify.com/v1/me/player/devices",
         headers={"Authorization": f"Bearer {token.token}"},
     )
     if response.status_code != 200:
-        return JSONResponse(
-            {"error": "Failed to get devices", "details": response.json()["error"]}, status_code=response.status_code
-        )
+        raise ValueError("Failed to get devices")
     devices = response.json()["devices"]
     device_id = None
     for device in devices:
@@ -111,18 +97,59 @@ async def play(uri: str):
             break
     if device_id is None:
         device_id = devices[0]["id"] if devices else None
+    if device_id is None:
+        raise ValueError("No Device available")
+    return device_id
+    
 
-    body = {
-        "uris": [uri],
-    }
+@api.post("/play")
+async def play(uri: str | None = None, start_ms: int = 0):
+    try:
+        token = UserToken()
+    except ValueError:
+        return RedirectResponse(url=auth.url_path_for("login"), status_code=302)
+
+    try:
+        device_id = await get_device(token)
+    except ValueError:
+        device_id = None
+
+    if uri:
+        body = {
+            "uris": [uri],
+            "position_ms": start_ms,
+        }
+    else:
+        body = {}
     response = requests.put(
         "https://api.spotify.com/v1/me/player/play" + (("?device_id=" + device_id) if device_id else ""),
         headers={"Authorization": f"Bearer {token.token}"},
         json=body,
     )
-    if response.status_code != 204:
+    if response.status_code != 204 and response.status_code != 200:
         return JSONResponse(
             {"error": "Failed to start playback", "details": response.json()["error"]}, status_code=response.status_code
         )
     return Response(status_code=204)
 
+@api.post("/pause")
+async def pause():
+    try:
+        token = UserToken()
+    except ValueError:
+        return RedirectResponse(url=auth.url_path_for("login"), status_code=302)
+
+    try:
+        device_id = await get_device(token)
+    except ValueError:
+        device_id = None
+    
+    response = requests.put(
+        "https://api.spotify.com/v1/me/player/pause" + (("?device_id=" + device_id) if device_id else ""),
+        headers={"Authorization": f"Bearer {token.token}"},
+    )
+    if response.status_code != 204 and response.status_code != 200:
+        return JSONResponse(
+            {"error": "Failed to pause playback", "details": response.json()["error"]}, status_code=response.status_code
+        )
+    return Response(status_code=204)

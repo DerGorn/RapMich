@@ -16,9 +16,10 @@ from typing import Annotated, List, Any
 
 from fuzzysearch import find_near_matches
 
+
 def genre_validation(genre: List[str]) -> List[str]:
     try:
-        with open('spotify_song_suggestion/genres.json', 'r') as infile:
+        with open("spotify_song_suggestion/genres.json", "r") as infile:
             valid_genres = json.load(infile)
     except FileNotFoundError:
         raise ValueError("Couldn't find genres file!")
@@ -30,7 +31,9 @@ def genre_validation(genre: List[str]) -> List[str]:
             # If genre not found as it is, try fuzzy search with Levenhstein distance 2
             valid_genres_to_text = " ".join(valid_genres)
             try:
-                closest_genre = find_near_matches(g, valid_genres_to_text,  max_l_dist=2)[0].matched
+                closest_genre = find_near_matches(
+                    g, valid_genres_to_text, max_l_dist=2
+                )[0].matched
                 validated_genres.append(closest_genre)
             except IndexError:
                 raise ValueError(f"Invalid genre: {genre}")
@@ -42,10 +45,12 @@ def genre_validation(genre: List[str]) -> List[str]:
 class Genre(BaseModel):
     genre: Annotated[List[str], AfterValidator(genre_validation)]
 
+
 # Spotify API URIs
 SPOTIFY_API_BASE_URL = "https://api.spotify.com"
 API_VERSION = "v1"
 SPOTIFY_API_URL = "{}/{}".format(SPOTIFY_API_BASE_URL, API_VERSION)
+
 
 class SongInfo(BaseModel):
     uri: str
@@ -54,9 +59,10 @@ class SongInfo(BaseModel):
     album: str
     release_date: str
     url: str
+    duration_ms: int
 
     @model_validator(mode="before")
-    @classmethod   
+    @classmethod
     def destructure_spotify_json(self, data: Any):
         if not isinstance(data, dict):
             raise ValueError("Invalid JSON format. Expected spotify JSON as dict.")
@@ -74,13 +80,15 @@ class SongInfo(BaseModel):
         data["album"] = spotify_json["album"]["name"]
         data["release_date"] = spotify_json["album"]["release_date"]
         data["url"] = spotify_json["external_urls"]["spotify"]
+        data["duration_ms"] = spotify_json.get("duration_ms", 20000)
         return data
-    
+
     def __repr__(self):
         return str(self)
+
     def __str__(self):
         return f"'{self.name}' by '{self.artist}' on '{self.album} ({self.release_date})'\n{self.url}"
-    
+
     def to_json(self):
         return {
             "uri": self.uri,
@@ -88,10 +96,12 @@ class SongInfo(BaseModel):
             "artist": self.artist,
             "album": self.album,
             "release_date": self.release_date,
-            "url": self.url
+            "url": self.url,
+            "duration_ms": self.duration_ms,
         }
 
-def request_valid_song(access_token, genre: str=None) -> SongInfo:
+
+def request_valid_song(access_token, genre: str = None) -> SongInfo:
     # Wildcards for random search
     random_wildcards = [
         "%25a%25",
@@ -128,12 +138,12 @@ def request_valid_song(access_token, genre: str=None) -> SongInfo:
                 headers=authorization_header,
             )
             song_info = random.choice(json.loads(song_request.text)["tracks"]["items"])
+            
             break
         except IndexError:
             continue
 
-    
-    return SongInfo(song_info)
+    return SongInfo(spotify_json=song_info)
 
 
 def main(token: Token, genre: Genre | None = None):
